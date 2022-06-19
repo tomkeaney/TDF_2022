@@ -1,0 +1,284 @@
+---
+title: "Tour de France 2022 Fantasy draft"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    theme: yeti
+    toc: yes
+    toc_float: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+```
+
+```{r, include=FALSE}
+library(tidyverse)
+library(rvest)
+library(polite)
+library(tidyr)
+library(kableExtra)
+library(DT)
+
+tds_s1_stage <- read_html("https://www.procyclingstats.com/race/tour-de-suisse/2022/stage-1")
+tds_s2_stage <- read_html("https://www.procyclingstats.com/race/tour-de-suisse/2022/stage-2")
+tds_s3_stage <- read_html("https://www.procyclingstats.com/race/tour-de-suisse/2022/stage-3")
+tds_s4_stage <- read_html("https://www.procyclingstats.com/race/tour-de-suisse/2022/stage-4")
+tds_s5_stage <- read_html("https://www.procyclingstats.com/race/tour-de-suisse/2022/stage-5")
+tds_s6_stage <- read_html("https://www.procyclingstats.com/race/tour-de-suisse/2022/stage-6")
+tds_s7_stage <- read_html("https://www.procyclingstats.com/race/tour-de-suisse/2022/stage-7")
+
+
+stage_1_results <- tds_s1_stage %>%
+  html_node("table") %>% 
+  html_table() %>% 
+  as_tibble(.name_repair = "unique") %>% 
+  select(Rnk, GC, BIB, Rider) %>% 
+  mutate(Stage = 1)
+
+stage_2_results <- tds_s2_stage %>%
+  html_node("table") %>% 
+  html_table() %>% 
+  as_tibble(.name_repair = "unique") %>% 
+  select(Rnk, GC, BIB, Rider) %>% 
+  mutate(Stage = 2)
+
+stage_3_results <- tds_s3_stage %>%
+  html_node("table") %>% 
+  html_table() %>% 
+  as_tibble(.name_repair = "unique") %>% 
+  select(Rnk, GC, BIB, Rider) %>% 
+  mutate(Stage = 3)
+
+stage_4_results <- tds_s4_stage %>%
+  html_node("table") %>% 
+  html_table() %>% 
+  as_tibble(.name_repair = "unique") %>% 
+  select(Rnk, GC, BIB, Rider) %>% 
+  mutate(Stage = 4)
+
+stage_5_results <- tds_s5_stage %>%
+  html_node("table") %>% 
+  html_table() %>% 
+  as_tibble(.name_repair = "unique") %>% 
+  select(Rnk, GC, BIB, Rider) %>% 
+  mutate(Stage = 5)
+
+stage_6_results <- tds_s6_stage %>%
+  html_node("table") %>% 
+  html_table() %>% 
+  as_tibble(.name_repair = "unique") %>% 
+  select(Rnk, GC, BIB, Rider) %>% 
+  mutate(Stage = 6)
+
+stage_7_results <- tds_s7_stage %>%
+  html_node("table") %>% 
+  html_table() %>% 
+  as_tibble(.name_repair = "unique") %>% 
+  select(Rnk, GC, BIB, Rider) %>% 
+  mutate(Stage = 7)
+
+x <- list(stage_1_results, stage_2_results, stage_3_results, stage_4_results, stage_5_results, stage_6_results, stage_7_results)
+```
+
+# Who has who?
+
+```{r}
+Teams <- tibble(Willo = c(135, 111, 7, 47, 24, 5),
+                Haz = c(1, 44, 6, 93, 87, 41),
+                Stiff = c(36, 12, 2, 61, 101, 57),
+                Bergs = c(14, 3, 205, 21, 171, 187),
+                Falcs = c(62, 32, 193, 4, 201, 12),
+                Zing = c(16, 75, 15, 201, 121, 147)) %>% 
+  pivot_longer(names_to = "Entrant",
+               values_to = "BIB",
+               cols = 1:6)
+
+Startlist <- stage_1_results %>% 
+  select(BIB, Rider)
+
+Rider_list <- left_join(Startlist, Teams) %>% 
+  mutate(Entrant = replace_na(Entrant, "Not selected"))
+
+# Who has who?
+
+Rider_list %>% 
+  pivot_wider(names_from = Entrant, values_from = Rider, id_cols = Rider) %>% 
+  select(-`Not selected`) %>% 
+  unnest(cols = c(Stiff, Willo, Bergs, Haz, Zing, Falcs)) %>% 
+  kable() %>% 
+  kable_styling()
+  
+```
+
+# Provisional standings
+
+```{r suisse example}
+  
+Stage_Scoring <- function(stage_data){
+  stage_data %>%
+  mutate(stage_points = recode(Rnk, "1" = 10, "2" = 5, "3" = 2, .default = 0),
+         yellow_points = recode(GC, "1" = 2, .default = 0),
+         GC_points = recode(GC, "1" = 30, "2" = 20, "3" = 15,
+                            "4" = 12, "5" = 10, "6" = 8, "7" = 7,
+                            "8" = 6, "9" = 5, "10" = 4, "11" = 3,
+                            "12" = 2, "13" = 1, .default = 0))
+}
+
+Total_score <- map_dfr(x, Stage_Scoring) 
+
+Total_score_tidy <- Total_score %>% 
+  group_by(Rider) %>% 
+  mutate(Total_stage_points = sum(stage_points, na.rm = TRUE),
+            Total_yellow_points = sum(yellow_points, na.rm = TRUE)) %>% 
+  distinct(BIB, .keep_all = TRUE)
+
+a <- 
+  Total_score_tidy %>%
+  select(Rider, Total_stage_points, Total_yellow_points)
+
+b <-
+  Total_score %>% 
+  filter(Stage == max(Stage)) %>%
+  select(GC, BIB, Rider, GC_points)
+
+Results <- 
+  left_join(a, b) %>% 
+  mutate(GC_points = replace_na(GC_points, 0),
+         GC = replace_na(GC, "DNF"), 
+         Final_score = Total_stage_points + Total_yellow_points + GC_points) %>% 
+  arrange(-Final_score) %>% 
+  select(Rider, GC, Total_stage_points, Total_yellow_points, GC_points, Final_score)
+
+Results_complete <- left_join(Rider_list, Results)
+
+Team_rankings <-
+  Results_complete %>% group_by(Entrant) %>% 
+  mutate(`Provisional score` = sum(Final_score)) %>% 
+  arrange(-`Provisional score`) %>% 
+  distinct(Entrant, .keep_all = TRUE) %>% 
+  select(Entrant, `Provisional score`) %>% 
+  filter(Entrant  != "Not selected")
+
+Rider_rankings <-
+  Results_complete %>% 
+  arrange(-Final_score) %>% 
+  rename(`Provisional points` = Final_score)
+
+
+
+```
+
+```{r}
+Team_rankings %>% 
+  kable() %>% 
+  kable_styling()
+```
+
+
+# Rider rankings
+
+```{r}
+# Create a function to build HTML searchable tables
+
+my_data_table <- function(df){
+  datatable(
+    df, rownames=FALSE,
+    autoHideNavigation = TRUE,
+    extensions = c("Scroller",  "Buttons"),
+    options = list(
+      dom = 'Bfrtip',
+      deferRender=TRUE,
+      scrollX=TRUE, scrollY=400,
+      scrollCollapse=TRUE,
+      buttons =
+        list('pageLength', 'colvis', 'csv', list(
+          extend = 'pdf',
+          pageSize = 'A4',
+          orientation = 'landscape',
+          filename = 'tour_data')),
+      pageLength = 200
+    )
+  )
+}
+
+my_data_table(Rider_rankings %>% 
+                select(Rider, Entrant, `Provisional points`,
+                       GC_points, Total_stage_points,
+                       Total_yellow_points))
+
+
+```
+
+# Stage results {.tabset .tabset-pills}
+
+## Stage 1
+
+```{r}
+  
+kable(Stage_Scoring(stage_1_results) %>% 
+                select(Rider, Rnk, stage_points)) %>% 
+  kable_styling()
+  
+```
+
+## Stage 2
+
+```{r}
+  
+kable(Stage_Scoring(stage_2_results) %>% 
+                select(Rider, Rnk, stage_points)) %>% 
+  kable_styling()
+  
+```
+
+## Stage 3
+
+```{r}
+  
+kable(Stage_Scoring(stage_3_results) %>% 
+                select(Rider, Rnk, stage_points)) %>% 
+  kable_styling()
+  
+```
+
+## Stage 4
+
+```{r}
+  
+kable(Stage_Scoring(stage_4_results) %>% 
+                select(Rider, Rnk, stage_points)) %>% 
+  kable_styling()
+  
+```
+
+## Stage 5
+
+```{r}
+  
+kable(Stage_Scoring(stage_5_results) %>% 
+                select(Rider, Rnk, stage_points)) %>% 
+  kable_styling()
+  
+```
+
+## Stage 6
+
+```{r}
+  
+kable(Stage_Scoring(stage_6_results) %>% 
+                select(Rider, Rnk, stage_points)) %>% 
+  kable_styling()
+  
+```
+
+## Stage 7
+
+```{r}
+  
+kable(Stage_Scoring(stage_7_results) %>% 
+                select(Rider, Rnk, stage_points)) %>% 
+  kable_styling()
+  
+```
+
