@@ -9,7 +9,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, cache = TRUE)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, cache = FALSE)
 ```
 
 ```{r, include=FALSE}
@@ -23,6 +23,7 @@ library(DT)
 # Load in stage data
 
 Stage_1 <- read_html("https://www.procyclingstats.com/race/tour-de-france/2022/stage-1/result/result")
+Sprint <- read_html("https://www.procyclingstats.com/race/tour-de-france/2022/stage-1-points")
 Stage_2 <- read_html("https://www.procyclingstats.com/race/tour-de-france/2022/stage-2/result/result")
 Stage_3 <- read_html("https://www.procyclingstats.com/race/tour-de-france/2022/stage-3/result/result")
 Stage_4 <- read_html("https://www.procyclingstats.com/race/tour-de-france/2022/stage-4/result/result")
@@ -43,12 +44,6 @@ Stage_18 <- read_html("https://www.procyclingstats.com/race/tour-de-france/2022/
 Stage_19 <- read_html("https://www.procyclingstats.com/race/tour-de-france/2022/stage-19/result/result")
 Stage_20 <- read_html("https://www.procyclingstats.com/race/tour-de-france/2022/stage-20/result/result")
 Stage_21 <- read_html("https://www.procyclingstats.com/race/tour-de-france/2022/stage-21/result/result")
-
-startlist <- read_html("https://www.procyclingstats.com/race/tour-de-france/2022/gc/startlist/alphabetical-with-filters") %>% 
-  html_node("table") %>% 
-  html_table() %>% 
-  as_tibble(.name_repair = "unique") %>% 
-  select(Ridername, Team)
   
 # Get results
 
@@ -219,12 +214,7 @@ Teams <- tibble(`Rider type` = c("General", "General", "General", "General", "Sp
 
 # For the standings
 
-Teams_long <- Teams %>% 
-  select(-`Rider type`) %>% 
-  pivot_longer(names_to = "Team",
-               values_to = "Rider",
-               cols = 1:6) %>% 
-  mutate(BIB = c(1, 11, 18, 16, 22, 41, 81, 21, 171, 31, 97, 141, 198, 82, 111, 71, 61, 91, 172, 194, 24, 84, 142, 201, 105, 204, 161, 181, 101, 51, 8, 25, 28, 131, 151, 14))
+startlist <- read_csv("Riders.csv")
 
 
 # Who has who?
@@ -249,9 +239,7 @@ $~$
 
 $~$
 
-These will appear once the first stage is complete
-
-```{r eval=FALSE}
+```{r}
   
 Stage_Scoring <- function(stage_data){
   stage_data %>%
@@ -262,17 +250,18 @@ Stage_Scoring <- function(stage_data){
                             "12" = 8, "13" = 6, "14" = 6, "15" = 6, .default = 0))
 }
 
-Total_score <- map_dfr(Stage_list, Stage_Scoring) 
+Total_score <- Stage_Scoring(stage_1_results)
+
+#Total_score <- map_dfr(stage_1_results, Stage_Scoring) 
 
 Total_score_tidy <- Total_score %>% 
   group_by(Rider) %>% 
-  mutate(Total_stage_points = sum(stage_points, na.rm = TRUE),
-            Total_yellow_points = sum(yellow_points, na.rm = TRUE)) %>% 
+  mutate(Total_stage_points = sum(stage_points, na.rm = TRUE)) %>% 
   distinct(BIB, .keep_all = TRUE)
 
 a <- 
   Total_score_tidy %>%
-  select(Rider, Total_stage_points, Total_yellow_points)
+  select(Rider, BIB, Total_stage_points)
 
 b <-
   Total_score %>% 
@@ -283,30 +272,38 @@ Results <-
   left_join(a, b) %>% 
   mutate(GC_points = replace_na(GC_points, 0),
          GC = replace_na(GC, "DNF"), 
-         Final_score = Total_stage_points + Total_yellow_points + GC_points) %>% 
+         Final_score = Total_stage_points + GC_points) %>% 
   arrange(-Final_score) %>% 
-  select(Rider, GC, Total_stage_points, Total_yellow_points, GC_points, Final_score)
+  select(Rider, BIB, GC, Total_stage_points, GC_points, Final_score)
 
-Results_complete <- left_join(Rider_list, Results)
+Results_complete <- left_join(startlist, Results) %>% 
+  select(-c(Rider))
 
 Team_rankings <-
-  Results_complete %>% group_by(Entrant) %>% 
+  Results_complete %>%
+  filter(Sub == "NO") %>% 
+  group_by(Picked_by) %>% 
   mutate(`Provisional score` = sum(Final_score)) %>% 
   arrange(-`Provisional score`) %>% 
-  distinct(Entrant, .keep_all = TRUE) %>% 
-  select(Entrant, `Provisional score`) %>% 
-  filter(Entrant  != "Not selected")
+  distinct(Picked_by, .keep_all = TRUE) %>% 
+  select(Picked_by, Total_stage_points, `Provisional score`) %>% 
+  rename(`Confirmed points` = Total_stage_points) %>% 
+  filter(Picked_by  != "Not selected") %>% 
+  rename(`Directeur sportif` = Picked_by)
 
 Rider_rankings <-
   Results_complete %>% 
   arrange(-Final_score) %>% 
-  rename(`Provisional points` = Final_score)
-
-
+  rename(`Provisional score` = Final_score) %>% 
+  rename(`Directeur sportif` = Picked_by,
+         Rider = Ridername, 
+         `Cumulative stage points` = Total_stage_points,
+         `GC points` = GC_points) %>% 
+  select(-c(BIB))
 
 ```
 
-```{r, eval=FALSE}
+```{r}
 Team_rankings %>% 
   kable() %>% 
   kable_styling()
@@ -318,9 +315,7 @@ $~$
 
 $~$
 
-These will appear once the first stage is complete
-
-```{r, eval=FALSE}
+```{r}
 # Create a function to build HTML searchable tables
 
 my_data_table <- function(df){
@@ -345,9 +340,8 @@ my_data_table <- function(df){
 }
 
 my_data_table(Rider_rankings %>% 
-                select(Rider, Entrant, `Provisional points`,
-                       GC_points, Total_stage_points,
-                       Total_yellow_points))
+                select(Rider, `Directeur sportif`, `Provisional score`,
+                       `GC points`, `Cumulative stage points`))
 
 
 ```
@@ -358,10 +352,12 @@ $~$
 
 ## Stage 1
 
-```{r, eval = FALSE}
+```{r}
   
-kable(Stage_Scoring(stage_1_results) %>% 
-                select(Rider, Rnk, stage_points)) %>% 
+kable(Stage_Scoring(stage_1_results) %>%
+        rename(`Stage result` = Rnk,
+               `Stage points` = stage_points) %>% 
+                select(Rider, `Stage result`, `Stage points`)) %>% 
   kable_styling()
   
 ```
@@ -371,7 +367,7 @@ kable(Stage_Scoring(stage_1_results) %>%
 ```{r, eval = FALSE}
   
 kable(Stage_Scoring(stage_2_results) %>% 
-                select(Rider, Rnk, stage_points)) %>% 
+               rename(`Stage result` = Rnk,                `Stage points` = stage_points) %>%                  select(Rider, `Stage result`, `Stage points`)) %>% 
   kable_styling()
   
 ```
@@ -381,7 +377,7 @@ kable(Stage_Scoring(stage_2_results) %>%
 ```{r, eval = FALSE}
   
 kable(Stage_Scoring(stage_3_results) %>% 
-                select(Rider, Rnk, stage_points)) %>% 
+               rename(`Stage result` = Rnk,                `Stage points` = stage_points) %>%                  select(Rider, `Stage result`, `Stage points`)) %>% 
   kable_styling()
   
 ```
@@ -391,7 +387,7 @@ kable(Stage_Scoring(stage_3_results) %>%
 ```{r, eval = FALSE}
   
 kable(Stage_Scoring(stage_4_results) %>% 
-                select(Rider, Rnk, stage_points)) %>% 
+               rename(`Stage result` = Rnk,                `Stage points` = stage_points) %>%                  select(Rider, `Stage result`, `Stage points`)) %>% 
   kable_styling()
   
 ```
@@ -401,7 +397,7 @@ kable(Stage_Scoring(stage_4_results) %>%
 ```{r, eval = FALSE}
   
 kable(Stage_Scoring(stage_5_results) %>% 
-                select(Rider, Rnk, stage_points)) %>% 
+               rename(`Stage result` = Rnk,                `Stage points` = stage_points) %>%                  select(Rider, `Stage result`, `Stage points`)) %>% 
   kable_styling()
   
 ```
@@ -411,7 +407,7 @@ kable(Stage_Scoring(stage_5_results) %>%
 ```{r, eval = FALSE}
   
 kable(Stage_Scoring(stage_6_results) %>% 
-                select(Rider, Rnk, stage_points)) %>% 
+               rename(`Stage result` = Rnk,                `Stage points` = stage_points) %>%                  select(Rider, `Stage result`, `Stage points`)) %>% 
   kable_styling()
   
 ```
@@ -421,7 +417,7 @@ kable(Stage_Scoring(stage_6_results) %>%
 ```{r, eval = FALSE}
   
 kable(Stage_Scoring(stage_7_results) %>% 
-                select(Rider, Rnk, stage_points)) %>% 
+               rename(`Stage result` = Rnk,                `Stage points` = stage_points) %>%                  select(Rider, `Stage result`, `Stage points`)) %>% 
   kable_styling()
   
 ```
@@ -431,7 +427,7 @@ kable(Stage_Scoring(stage_7_results) %>%
 ```{r, eval = FALSE}
   
 kable(Stage_Scoring(stage_8_results) %>% 
-                select(Rider, Rnk, stage_points)) %>% 
+               rename(`Stage result` = Rnk,                `Stage points` = stage_points) %>%                  select(Rider, `Stage result`, `Stage points`)) %>% 
   kable_styling()
   
 ```
@@ -441,7 +437,7 @@ kable(Stage_Scoring(stage_8_results) %>%
 ```{r, eval = FALSE}
   
 kable(Stage_Scoring(stage_9_results) %>% 
-                select(Rider, Rnk, stage_points)) %>% 
+               rename(`Stage result` = Rnk,                `Stage points` = stage_points) %>%                  select(Rider, `Stage result`, `Stage points`)) %>% 
   kable_styling()
   
 ```
@@ -451,7 +447,7 @@ kable(Stage_Scoring(stage_9_results) %>%
 ```{r, eval = FALSE}
   
 kable(Stage_Scoring(stage_10_results) %>% 
-                select(Rider, Rnk, stage_points)) %>% 
+               rename(`Stage result` = Rnk,                `Stage points` = stage_points) %>%                  select(Rider, `Stage result`, `Stage points`)) %>% 
   kable_styling()
   
 ```
@@ -461,7 +457,7 @@ kable(Stage_Scoring(stage_10_results) %>%
 ```{r, eval = FALSE}
   
 kable(Stage_Scoring(stage_11_results) %>% 
-                select(Rider, Rnk, stage_points)) %>% 
+               rename(`Stage result` = Rnk,                `Stage points` = stage_points) %>%                  select(Rider, `Stage result`, `Stage points`)) %>% 
   kable_styling()
   
 ```
@@ -471,7 +467,7 @@ kable(Stage_Scoring(stage_11_results) %>%
 ```{r, eval = FALSE}
   
 kable(Stage_Scoring(stage_12_results) %>% 
-                select(Rider, Rnk, stage_points)) %>% 
+               rename(`Stage result` = Rnk,                `Stage points` = stage_points) %>%                  select(Rider, `Stage result`, `Stage points`)) %>% 
   kable_styling()
   
 ```
@@ -481,7 +477,7 @@ kable(Stage_Scoring(stage_12_results) %>%
 ```{r, eval = FALSE}
   
 kable(Stage_Scoring(stage_13_results) %>% 
-                select(Rider, Rnk, stage_points)) %>% 
+               rename(`Stage result` = Rnk,                `Stage points` = stage_points) %>%                  select(Rider, `Stage result`, `Stage points`)) %>% 
   kable_styling()
   
 ```
@@ -491,7 +487,7 @@ kable(Stage_Scoring(stage_13_results) %>%
 ```{r, eval = FALSE}
   
 kable(Stage_Scoring(stage_14_results) %>% 
-                select(Rider, Rnk, stage_points)) %>% 
+               rename(`Stage result` = Rnk,                `Stage points` = stage_points) %>%                  select(Rider, `Stage result`, `Stage points`)) %>% 
   kable_styling()
   
 ```
@@ -501,7 +497,7 @@ kable(Stage_Scoring(stage_14_results) %>%
 ```{r, eval = FALSE}
   
 kable(Stage_Scoring(stage_15_results) %>% 
-                select(Rider, Rnk, stage_points)) %>% 
+               rename(`Stage result` = Rnk,                `Stage points` = stage_points) %>%                  select(Rider, `Stage result`, `Stage points`)) %>% 
   kable_styling()
   
 ```
@@ -511,7 +507,7 @@ kable(Stage_Scoring(stage_15_results) %>%
 ```{r, eval = FALSE}
   
 kable(Stage_Scoring(stage_16_results) %>% 
-                select(Rider, Rnk, stage_points)) %>% 
+               rename(`Stage result` = Rnk,                `Stage points` = stage_points) %>%                  select(Rider, `Stage result`, `Stage points`)) %>% 
   kable_styling()
   
 ```
@@ -521,7 +517,7 @@ kable(Stage_Scoring(stage_16_results) %>%
 ```{r, eval = FALSE}
   
 kable(Stage_Scoring(stage_17_results) %>% 
-                select(Rider, Rnk, stage_points)) %>% 
+               rename(`Stage result` = Rnk,                `Stage points` = stage_points) %>%                  select(Rider, `Stage result`, `Stage points`)) %>% 
   kable_styling()
   
 ```
@@ -531,7 +527,7 @@ kable(Stage_Scoring(stage_17_results) %>%
 ```{r, eval = FALSE}
   
 kable(Stage_Scoring(stage_18_results) %>% 
-                select(Rider, Rnk, stage_points)) %>% 
+               rename(`Stage result` = Rnk,                `Stage points` = stage_points) %>%                  select(Rider, `Stage result`, `Stage points`)) %>% 
   kable_styling()
   
 ```
@@ -541,7 +537,7 @@ kable(Stage_Scoring(stage_18_results) %>%
 ```{r, eval = FALSE}
   
 kable(Stage_Scoring(stage_19_results) %>% 
-                select(Rider, Rnk, stage_points)) %>% 
+               rename(`Stage result` = Rnk,                `Stage points` = stage_points) %>%                  select(Rider, `Stage result`, `Stage points`)) %>% 
   kable_styling()
   
 ```
@@ -551,7 +547,7 @@ kable(Stage_Scoring(stage_19_results) %>%
 ```{r, eval = FALSE}
   
 kable(Stage_Scoring(stage_20_results) %>% 
-                select(Rider, Rnk, stage_points)) %>% 
+               rename(`Stage result` = Rnk,                `Stage points` = stage_points) %>%                  select(Rider, `Stage result`, `Stage points`)) %>% 
   kable_styling()
   
 ```
@@ -561,7 +557,7 @@ kable(Stage_Scoring(stage_20_results) %>%
 ```{r, eval = FALSE}
   
 kable(Stage_Scoring(stage_21_results) %>% 
-                select(Rider, Rnk, stage_points)) %>% 
+               rename(`Stage result` = Rnk,                `Stage points` = stage_points) %>%                  select(Rider, `Stage result`, `Stage points`)) %>% 
   kable_styling()
   
 ```
