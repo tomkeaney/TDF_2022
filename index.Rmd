@@ -194,7 +194,7 @@ stage_21_results <- Stage_21 %>%
   select(Rnk, GC, BIB, Rider) %>% 
   mutate(Stage = 21)
 
-Stage_list <- list(stage_1_results, stage_2_results)
+Stage_list <- list(stage_1_results, stage_2_results, stage_3_results)
                    #, stage_3_results, stage_4_results, stage_5_results, stage_6_results, stage_7_results, stage_8_results, stage_9_results, stage_10_results, stage_11_results, stage_12_results, stage_13_results, stage_14_results,
                   # stage_15_results, stage_16_results, stage_17_results, stage_18_results,
                   # stage_19_results, stage_20_results, stage_21_results)
@@ -374,7 +374,7 @@ kable(Stage_Scoring(stage_2_results) %>%
 
 ## Stage 3
 
-```{r, eval = FALSE}
+```{r}
   
 kable(Stage_Scoring(stage_3_results) %>% 
                rename(`Stage result` = Rnk,                `Stage points` = stage_points) %>%                  select(Rider, `Stage result`, `Stage points`)) %>% 
