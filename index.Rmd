@@ -52,28 +52,32 @@ stage_1_results <- Stage_1 %>%
   html_table() %>% 
   as_tibble(.name_repair = "unique") %>% 
   select(Rnk, GC, BIB, Rider) %>% 
-  mutate(Stage = 1)
+  mutate(Stage = 1,
+         `Most combative` = "NO")
 
 stage_2_results <- Stage_2 %>%
   html_node("table") %>% 
   html_table() %>% 
   as_tibble(.name_repair = "unique") %>% 
   select(Rnk, GC, BIB, Rider) %>% 
-  mutate(Stage = 2)
+  mutate(Stage = 2,
+         `Most combative` = if_else(BIB == 122, "YES", "NO"))
 
 stage_3_results <- Stage_3 %>%
   html_node("table") %>% 
   html_table() %>% 
   as_tibble(.name_repair = "unique") %>% 
   select(Rnk, GC, BIB, Rider) %>% 
-  mutate(Stage = 3)
+  mutate(Stage = 3,
+         `Most combative` = if_else(BIB == 146, "YES", "NO"))
 
 stage_4_results <- Stage_4 %>%
   html_node("table") %>% 
   html_table() %>% 
   as_tibble(.name_repair = "unique") %>% 
   select(Rnk, GC, BIB, Rider) %>% 
-  mutate(Stage = 4)
+  mutate(Stage = 4,
+         `Most combative` = if_else(BIB == 76, "YES", "NO"))
 
 stage_5_results <- Stage_5 %>%
   html_node("table") %>% 
@@ -82,7 +86,8 @@ stage_5_results <- Stage_5 %>%
   select(Rnk, GC, BIB, Rider) %>% 
   mutate(Stage = 5,
          Rnk = recode(Rnk, DNF = "NA"),
-         Rnk = as.numeric(Rnk))
+         Rnk = as.numeric(Rnk),
+         `Most combative` = if_else(BIB == 146, "YES", "NO"))
 
 stage_6_results <- Stage_6 %>%
   html_node("table") %>% 
@@ -91,7 +96,8 @@ stage_6_results <- Stage_6 %>%
   select(Rnk, GC, BIB, Rider) %>% 
   mutate(Stage = 6,
          Rnk = recode(Rnk, DNF = "NA"),
-         Rnk = as.numeric(Rnk))
+         Rnk = as.numeric(Rnk),
+         `Most combative` = if_else(BIB == 16, "YES", "NO"))
 
 stage_7_results <- Stage_7 %>%
   html_node("table") %>% 
@@ -199,7 +205,7 @@ stage_21_results <- Stage_21 %>%
   mutate(Stage = 21)
 
 Stage_list <- list(stage_1_results, stage_2_results, stage_3_results, stage_4_results, stage_5_results, stage_6_results)
-                   #, stage_3_results, stage_4_results, stage_5_results, stage_6_results, stage_7_results, stage_8_results, stage_9_results, stage_10_results, stage_11_results, stage_12_results, stage_13_results, stage_14_results,
+                   # stage_7_results, stage_8_results, stage_9_results, stage_10_results, stage_11_results, stage_12_results, stage_13_results, stage_14_results,
                   # stage_15_results, stage_16_results, stage_17_results, stage_18_results,
                   # stage_19_results, stage_20_results, stage_21_results)
 ```
@@ -220,7 +226,8 @@ Teams <- tibble(`Rider type` = c("General", "General", "General", "General", "Sp
 # For the standings
 
 startlist <- read_csv("Riders.csv") %>% 
-  mutate(`Sub activated` = if_else(Ridername == "Hirschi Marc", "6", "NO"))
+  mutate(`Sub activated` = if_else(Ridername == "Hirschi Marc", "6", "NO")) 
+  
 
 
 # Who has who?
@@ -254,20 +261,21 @@ Stage_Scoring <- function(stage_data){
          GC_points = recode(GC, "1" = 25, "2" = 22, "3" = 20,
                             "4" = 18, "5" = 16, "6" = 14, "7" = 14,
                             "8" = 12, "9" = 10, "10" = 10, "11" = 8,
-                            "12" = 8, "13" = 6, "14" = 6, "15" = 6, .default = 0))
+                            "12" = 8, "13" = 6, "14" = 6, "15" = 6, .default = 0),
+         `Most combative points` = if_else(`Most combative` == "YES", 10, 0))
 }
-
 
 Total_score <- map_dfr(Stage_list, Stage_Scoring) 
 
 Total_score_tidy <- Total_score %>% 
   group_by(Rider) %>% 
-  mutate(Total_stage_points = sum(stage_points, na.rm = TRUE)) %>% 
+  mutate(Total_stage_points = sum(stage_points, na.rm = TRUE),
+         Total_most_combative_points = sum(`Most combative points`, na.rm = TRUE)) %>% 
   distinct(BIB, .keep_all = TRUE)
 
 a <- 
   Total_score_tidy %>%
-  select(Rider, BIB, Total_stage_points)
+  select(Rider, BIB, Total_stage_points, Total_most_combative_points)
 
 b <-
   Total_score %>% 
@@ -278,9 +286,9 @@ Results <-
   left_join(a, b) %>% 
   mutate(GC_points = replace_na(GC_points, 0),
          GC = replace_na(GC, "DNF"), 
-         Final_score = Total_stage_points + GC_points) %>% 
+         Final_score = Total_stage_points + GC_points + Total_most_combative_points) %>% 
   arrange(-Final_score) %>% 
-  select(Rider, BIB, GC, Total_stage_points, GC_points, Final_score)
+  select(Rider, BIB, GC, Total_stage_points, Total_most_combative_points, GC_points, Final_score)
 
 Results_complete <- left_join(startlist, Results) %>% 
   select(-c(Rider))
@@ -290,7 +298,7 @@ Team_rankings <-
   filter(Sub == "NO") %>% # fix this so sub activates
   group_by(Picked_by) %>% 
   mutate(`Provisional score` = sum(Final_score),
-         `Confirmed points` = sum(Total_stage_points)) %>% 
+         `Confirmed points` = sum(Total_stage_points) + sum(Total_most_combative_points)) %>% 
   arrange(-`Provisional score`) %>% 
   distinct(Picked_by, .keep_all = TRUE) %>% 
   select(Picked_by, `Confirmed points`, `Provisional score`) %>% 
@@ -304,6 +312,7 @@ Rider_rankings <-
   rename(`Directeur sportif` = Picked_by,
          Rider = Ridername, 
          `Cumulative stage points` = Total_stage_points,
+         `Cumulative most combative points` = Total_most_combative_points,
          `GC points` = GC_points) %>% 
   select(-c(BIB))
 
@@ -347,7 +356,7 @@ my_data_table <- function(df){
 
 my_data_table(Rider_rankings %>% 
                 select(Rider, `Directeur sportif`, `Provisional score`,
-                       `GC points`, `Cumulative stage points`))
+                       `GC points`, `Cumulative stage points`, `Cumulative most combative points`))
 
 
 ```
