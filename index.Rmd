@@ -124,7 +124,10 @@ stage_9_results <- Stage_9 %>%
   html_table() %>% 
   as_tibble(.name_repair = "unique") %>% 
   select(Rnk, GC, BIB, Rider) %>% 
-  mutate(Stage = 9)
+  mutate(Stage = 9,
+         Rnk = recode(Rnk, DNF = "NA"),
+         Rnk = as.numeric(Rnk),
+         `Most combative` = if_else(BIB == 97, "YES", "NO"))
 
 stage_10_results <- Stage_10 %>%
   html_node("table") %>% 
@@ -210,8 +213,8 @@ stage_21_results <- Stage_21 %>%
   select(Rnk, GC, BIB, Rider) %>% 
   mutate(Stage = 21)
 
-Stage_list <- list(stage_1_results, stage_2_results, stage_3_results, stage_4_results, stage_5_results, stage_6_results, stage_7_results, stage_8_results)
-#stage_9_results, stage_10_results, stage_11_results, stage_12_results, stage_13_results, stage_14_results,
+Stage_list <- list(stage_1_results, stage_2_results, stage_3_results, stage_4_results, stage_5_results, stage_6_results, stage_7_results, stage_8_results, stage_9_results)
+# stage_10_results, stage_11_results, stage_12_results, stage_13_results, stage_14_results,
                   # stage_15_results, stage_16_results, stage_17_results, stage_18_results,
                   # stage_19_results, stage_20_results, stage_21_results)
 ```
@@ -225,14 +228,18 @@ Teams <- tibble(`Rider type` = c("General", "General", "General", "General", "Sp
                 Stiff = c("Pogačar Tadej", "Hirschi Marc", "Woods Michael", "Ciccone Giulio", "Philipsen Jasper", "Haig Jack"),
                 Willo = c("Roglič Primož", "Thomas Geraint", "Caruso Damiano", "Fuglsang Jakob", "Groenewegen Dylan", "Pidcock Thomas"),
                 Falcs = c("Vingegaard Jonas", "Pedersen Mads", "Bardet Romain", "Ganna Fillipo", "Ewan Caleb", "Yates Adam"),
-                Haz = c("van Aert Wout", "O'Connor Ben", "Martin Guillaume", "Mohorič Matej", "Sagan Peter", "Lutsenko Alexey"),
-                Zing = c("Martínez Daniel Felipe", "Pinot Thibaut", "Mas Enric", "Guerreiro Ruben", "van der Poel Mathieu", "Quintana Nairo"),
+                Haz = c("van Aert Wout", "O'Connor Ben", "Lutsenko Alexey", "Mohorič Matej", "Sagan Peter", "Martin Guillaume"),
+                Zing = c("Martínez Daniel Felipe", "Pinot Thibaut", "Mas Enric", "Quintana Nairo", "van der Poel Mathieu", "Guerreiro Ruben"),
                 Bergs = c("Vlasov Alexandr", "Urán Rigoberto", "Gaudu David", "Matthews Michael", "Jakobsen Fabio", "Kuss Sepp")) 
 
 # For the standings
 
 startlist <- read_csv("Riders.csv") %>% 
-  mutate(`Sub activated` = if_else(Ridername == "Hirschi Marc", "6", "NO")) 
+  mutate(`Sub activated` = case_when(Ridername == "Hirschi Marc" ~ 6,
+                                     Ridername == "Lutsenko Alexey" ~ 9,
+                                     Ridername == "QUINTANA Nairo" ~ 9))
+
+# Hirschi actually activated on stage 6 but he hasn't done anything so it doesn't matter
   
 
 
@@ -244,11 +251,13 @@ startlist <- read_csv("Riders.csv") %>%
  # column_spec(8, background = spec_color(data$`DIFFERENCE RANK`, option = "A", begin = 0.6, end = 0.95))
   
 Teams %>%
-  mutate(Stiff = cell_spec(Stiff, "html", strikeout = ifelse(Stiff == "Haig Jack", TRUE, FALSE))) %>% 
+  mutate(Stiff = cell_spec(Stiff, "html", strikeout = ifelse(Stiff == "Haig Jack", TRUE, FALSE)),
+         Haz = cell_spec(Haz, "html", strikeout = ifelse(Haz == "Martin Guillaume", TRUE, FALSE)), 
+         Zing = cell_spec(Zing, "html", strikeout = ifelse(Zing == "Guerreiro Ruben", TRUE, FALSE))) %>% 
   kable(escape = F) %>% 
   kable_styling() %>% 
   #row_spec(5, color = "black", background = "#89c0b6") %>% 
-   row_spec(6, background = "#f97b57") %>% 
+  row_spec(6, background = "#f97b57") %>% 
   column_spec(1, bold = TRUE)
   
 ```
@@ -455,7 +464,7 @@ kable(Stage_Scoring(stage_8_results) %>%
 
 ## Stage 9
 
-```{r, eval = FALSE}
+```{r}
   
 kable(Stage_Scoring(stage_9_results) %>% 
                rename(`Stage result` = Rnk,                `Stage points` = stage_points) %>%                  select(Rider, `Stage result`, `Stage points`)) %>% 
