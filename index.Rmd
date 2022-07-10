@@ -104,14 +104,20 @@ stage_7_results <- Stage_7 %>%
   html_table() %>% 
   as_tibble(.name_repair = "unique") %>% 
   select(Rnk, GC, BIB, Rider) %>% 
-  mutate(Stage = 7)
+  mutate(Stage = 7,
+         Rnk = recode(Rnk, DNF = "NA"),
+         Rnk = as.numeric(Rnk),
+         `Most combative` = if_else(BIB == 73, "YES", "NO"))
 
 stage_8_results <- Stage_8 %>%
   html_node("table") %>% 
   html_table() %>% 
   as_tibble(.name_repair = "unique") %>% 
   select(Rnk, GC, BIB, Rider) %>% 
-  mutate(Stage = 8)
+  mutate(Stage = 8,
+         Rnk = recode(Rnk, DNF = "NA"),
+         Rnk = as.numeric(Rnk),
+         `Most combative` = if_else(BIB == 54, "YES", "NO"))
 
 stage_9_results <- Stage_9 %>%
   html_node("table") %>% 
@@ -204,8 +210,8 @@ stage_21_results <- Stage_21 %>%
   select(Rnk, GC, BIB, Rider) %>% 
   mutate(Stage = 21)
 
-Stage_list <- list(stage_1_results, stage_2_results, stage_3_results, stage_4_results, stage_5_results, stage_6_results)
-                   # stage_7_results, stage_8_results, stage_9_results, stage_10_results, stage_11_results, stage_12_results, stage_13_results, stage_14_results,
+Stage_list <- list(stage_1_results, stage_2_results, stage_3_results, stage_4_results, stage_5_results, stage_6_results, stage_7_results, stage_8_results)
+#stage_9_results, stage_10_results, stage_11_results, stage_12_results, stage_13_results, stage_14_results,
                   # stage_15_results, stage_16_results, stage_17_results, stage_18_results,
                   # stage_19_results, stage_20_results, stage_21_results)
 ```
@@ -429,7 +435,7 @@ kable(Stage_Scoring(stage_6_results) %>%
 
 ## Stage 7
 
-```{r, eval = FALSE}
+```{r}
   
 kable(Stage_Scoring(stage_7_results) %>% 
                rename(`Stage result` = Rnk,                `Stage points` = stage_points) %>%                  select(Rider, `Stage result`, `Stage points`)) %>% 
@@ -439,7 +445,7 @@ kable(Stage_Scoring(stage_7_results) %>%
 
 ## Stage 8
 
-```{r, eval = FALSE}
+```{r}
   
 kable(Stage_Scoring(stage_8_results) %>% 
                rename(`Stage result` = Rnk,                `Stage points` = stage_points) %>%                  select(Rider, `Stage result`, `Stage points`)) %>% 
