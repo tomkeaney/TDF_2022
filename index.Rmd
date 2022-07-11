@@ -234,10 +234,11 @@ Teams <- tibble(`Rider type` = c("General", "General", "General", "General", "Sp
 
 # For the standings
 
-startlist <- read_csv("Riders.csv") %>% 
-  mutate(`Sub activated` = case_when(Ridername == "Hirschi Marc" ~ 6,
-                                     Ridername == "Lutsenko Alexey" ~ 9,
-                                     Ridername == "QUINTANA Nairo" ~ 9))
+startlist <- read_csv("Riders.csv") %>%
+  mutate(`Sub activated` = case_when(BIB == 8 ~ "6",
+                                     BIB == 151 ~ "9",
+                                     BIB == 131 ~ "9",
+                                     BIB != c(8, 151, 131) ~ "NO"))
 
 # Hirschi actually activated on stage 6 but he hasn't done anything so it doesn't matter
   
@@ -310,7 +311,7 @@ Results_complete <- left_join(startlist, Results) %>%
 
 Team_rankings <-
   Results_complete %>%
-  filter(Sub == "NO") %>% # fix this so sub activates
+  filter(Sub == "NO" | `Sub activated` != "NO") %>% # fix this so sub activates
   group_by(Picked_by) %>% 
   mutate(`Provisional score` = sum(Final_score),
          `Confirmed points` = sum(Total_stage_points) + sum(Total_most_combative_points)) %>% 
