@@ -134,14 +134,20 @@ stage_10_results <- Stage_10 %>%
   html_table() %>% 
   as_tibble(.name_repair = "unique") %>% 
   select(Rnk, GC, BIB, Rider) %>% 
-  mutate(Stage = 10)
+  mutate(Stage = 10,
+         Rnk = recode(Rnk, DNF = "NA"),
+         Rnk = as.numeric(Rnk),
+         `Most combative` = if_else(BIB == 143, "YES", "NO"))
 
 stage_11_results <- Stage_11 %>%
   html_node("table") %>% 
   html_table() %>% 
   as_tibble(.name_repair = "unique") %>% 
   select(Rnk, GC, BIB, Rider) %>% 
-  mutate(Stage = 11)
+  mutate(Stage = 11,
+         Rnk = recode(Rnk, DNF = "NA"),
+         Rnk = as.numeric(Rnk),
+         `Most combative` = if_else(BIB == 152, "YES", "NO"))
 
 stage_12_results <- Stage_12 %>%
   html_node("table") %>% 
@@ -213,8 +219,8 @@ stage_21_results <- Stage_21 %>%
   select(Rnk, GC, BIB, Rider) %>% 
   mutate(Stage = 21)
 
-Stage_list <- list(stage_1_results, stage_2_results, stage_3_results, stage_4_results, stage_5_results, stage_6_results, stage_7_results, stage_8_results, stage_9_results)
-# stage_10_results, stage_11_results, stage_12_results, stage_13_results, stage_14_results,
+Stage_list <- list(stage_1_results, stage_2_results, stage_3_results, stage_4_results, stage_5_results, stage_6_results, stage_7_results, stage_8_results, stage_9_results, stage_10_results, stage_11_results)
+# , stage_12_results, stage_13_results, stage_14_results,
                   # stage_15_results, stage_16_results, stage_17_results, stage_18_results,
                   # stage_19_results, stage_20_results, stage_21_results)
 ```
@@ -228,7 +234,7 @@ Teams <- tibble(`Rider type` = c("General", "General", "General", "General", "Sp
                 Stiff = c("Pogačar Tadej", "Hirschi Marc", "Woods Michael", "Ciccone Giulio", "Philipsen Jasper", "Haig Jack"),
                 Willo = c("Roglič Primož", "Thomas Geraint", "Caruso Damiano", "Fuglsang Jakob", "Groenewegen Dylan", "Pidcock Thomas"),
                 Falcs = c("Vingegaard Jonas", "Pedersen Mads", "Bardet Romain", "Ganna Fillipo", "Ewan Caleb", "Yates Adam"),
-                Haz = c("van Aert Wout", "O'Connor Ben", "Lutsenko Alexey", "Mohorič Matej", "Sagan Peter", "Martin Guillaume"),
+                Haz = c("van Aert Wout", "Paret-Peintre Aurélien", "Lutsenko Alexey", "Mohorič Matej", "Sagan Peter", "Martin Guillaume"),
                 Zing = c("Martínez Daniel Felipe", "Pinot Thibaut", "Mas Enric", "Quintana Nairo", "van der Poel Mathieu", "Guerreiro Ruben"),
                 Bergs = c("Vlasov Alexandr", "Urán Rigoberto", "Gaudu David", "Matthews Michael", "Jakobsen Fabio", "Kuss Sepp")) 
 
@@ -475,7 +481,7 @@ kable(Stage_Scoring(stage_9_results) %>%
 
 ## Stage 10
 
-```{r, eval = FALSE}
+```{r}
   
 kable(Stage_Scoring(stage_10_results) %>% 
                rename(`Stage result` = Rnk,                `Stage points` = stage_points) %>%                  select(Rider, `Stage result`, `Stage points`)) %>% 
@@ -485,7 +491,7 @@ kable(Stage_Scoring(stage_10_results) %>%
 
 ## Stage 11
 
-```{r, eval = FALSE}
+```{r}
   
 kable(Stage_Scoring(stage_11_results) %>% 
                rename(`Stage result` = Rnk,                `Stage points` = stage_points) %>%                  select(Rider, `Stage result`, `Stage points`)) %>% 
