@@ -105,8 +105,8 @@ stage_7_results <- Stage_7 %>%
   as_tibble(.name_repair = "unique") %>% 
   select(Rnk, GC, BIB, Rider) %>% 
   mutate(Stage = 7,
-         Rnk = recode(Rnk, DNF = "NA"),
-         Rnk = as.numeric(Rnk),
+         #Rnk = recode(Rnk, DNF = "NA"),
+         #Rnk = as.numeric(Rnk),
          `Most combative` = if_else(BIB == 73, "YES", "NO"))
 
 stage_8_results <- Stage_8 %>%
@@ -175,8 +175,8 @@ stage_14_results <- Stage_14 %>%
   as_tibble(.name_repair = "unique") %>% 
   select(Rnk, GC, BIB, Rider) %>% 
   mutate(Stage = 14,
-         Rnk = recode(Rnk, DNF = "NA"),
-         Rnk = as.numeric(Rnk),
+         #Rnk = recode(Rnk, DNF = "NA"),
+         #Rnk = as.numeric(Rnk),
          `Most combative` = if_else(BIB == 201, "YES", "NO"))
 
 stage_15_results <- Stage_15 %>%
@@ -204,7 +204,10 @@ stage_17_results <- Stage_17 %>%
   html_table() %>% 
   as_tibble(.name_repair = "unique") %>% 
   select(Rnk, GC, BIB, Rider) %>% 
-  mutate(Stage = 17)
+  mutate(Stage = 17,
+         Rnk = recode(Rnk, DNF = "NA"),
+         Rnk = as.numeric(Rnk),
+         `Most combative` = if_else(BIB == 6, "YES", "NO"))
 
 stage_18_results <- Stage_18 %>%
   html_node("table") %>% 
@@ -234,7 +237,7 @@ stage_21_results <- Stage_21 %>%
   select(Rnk, GC, BIB, Rider) %>% 
   mutate(Stage = 21)
 
-Stage_list <- list(stage_1_results, stage_2_results, stage_3_results, stage_4_results, stage_5_results, stage_6_results, stage_7_results, stage_8_results, stage_9_results, stage_10_results, stage_11_results, stage_12_results, stage_13_results, stage_14_results,stage_15_results, stage_16_results)
+Stage_list <- list(stage_1_results, stage_2_results, stage_3_results, stage_4_results, stage_5_results, stage_6_results, stage_7_results, stage_8_results, stage_9_results, stage_10_results, stage_11_results, stage_12_results, stage_13_results, stage_14_results,stage_15_results, stage_16_results, stage_17_results)
 
 #stage_17_results, stage_18_results,
                   # stage_19_results, stage_20_results, stage_21_results)
@@ -249,8 +252,8 @@ Teams <- tibble(`Rider type` = c("General", "General", "General", "General", "Sp
                 Stiff = c("Pogačar Tadej", "Hirschi Marc", "Woods Michael", "Ciccone Giulio", "Philipsen Jasper", "Haig Jack"),
                 Willo = c("Pidcock Thomas", "Thomas Geraint", "Caruso Damiano", "Fuglsang Jakob", "Groenewegen Dylan", "Roglič Primož"),
                 Falcs = c("Vingegaard Jonas", "Pedersen Mads", "Bardet Romain", "Ganna Fillipo", "Ewan Caleb", "Yates Adam"),
-                Haz = c("van Aert Wout", "Paret-Peintre Aurélien", "Lutsenko Alexey", "Mohorič Matej", "Sagan Peter", "Martin Guillaume"),
-                Zing = c("Martínez Daniel Felipe", "Pinot Thibaut", "Mas Enric", "Quintana Nairo", "van der Poel Mathieu", "Guerreiro Ruben"),
+                Haz = c("van Aert Wout", "KÜNG Stefan", "Lutsenko Alexey", "Mohorič Matej", "Sagan Peter", "Martin Guillaume"),
+                Zing = c("Martínez Daniel Felipe", "Pinot Thibaut", "Mas Enric", "Quintana Nairo", "DOMBROWSKI Joe", "Guerreiro Ruben"),
                 Bergs = c("Vlasov Alexandr", "Urán Rigoberto", "Gaudu David", "Matthews Michael", "Jakobsen Fabio", "Kuss Sepp")) 
 
 # For the standings
@@ -324,7 +327,7 @@ b <-
 Results <- 
   left_join(a, b) %>% 
   mutate(GC_points = replace_na(GC_points, 0),
-         GC = replace_na(GC, "DNF"), 
+         #GC = replace_na(GC, "DNF"), 
          Final_score = Total_stage_points + GC_points + Total_most_combative_points) %>% 
   arrange(-Final_score) %>% 
   select(Rider, BIB, GC, Total_stage_points, Total_most_combative_points, GC_points, Final_score)
@@ -359,8 +362,11 @@ Rider_rankings <-
 
 ```{r}
 Team_rankings %>% 
-  tibble(Sub_penalty = c(0, 0, 0, 0, -20, 0)) %>% 
-  mutate(`Provisional score` = `Provisional score` + Sub_penalty) %>% 
+  tibble(Sub_penalty = c(0, 0, 0, 0, -20, 0),
+         Green_points = c(0, 14, 0, 10, 0, 0),
+         Mountain_points = c(6, 4, 0, 0, 0, 0)) %>% 
+  mutate(`Confirmed points` = `Confirmed points` + Sub_penalty,
+         `Provisional score` = `Provisional score` + Sub_penalty + Green_points + Mountain_points) %>% 
   select(-Sub_penalty) %>% 
   arrange(-`Provisional score`) %>% 
   kable() %>% 
@@ -572,7 +578,7 @@ kable(Stage_Scoring(stage_16_results) %>%
 
 ## Stage 17
 
-```{r, eval = FALSE}
+```{r}
   
 kable(Stage_Scoring(stage_17_results) %>% 
                rename(`Stage result` = Rnk,                `Stage points` = stage_points) %>%                  select(Rider, `Stage result`, `Stage points`)) %>% 
